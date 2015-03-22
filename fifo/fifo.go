@@ -44,43 +44,11 @@ A couple of assumptions in this package:
 import (
 	"fmt"
 	"github.com/GoogleCloudPlatform/kubernetes/pkg/api"
-	"github.com/GoogleCloudPlatform/kubernetes/pkg/client"
 	"github.com/GoogleCloudPlatform/kubernetes/pkg/client/cache"
 	"github.com/GoogleCloudPlatform/kubernetes/pkg/fields"
-	"github.com/GoogleCloudPlatform/kubernetes/pkg/watch"
+	"github.com/truthninja/sandbox/kubeclient"
 	"time"
 )
-
-// NewKubeClient creates an insecure kubernets client to the apiserver running on localhost.
-func NewKubeClient() (*client.Client, error) {
-	return client.New(&client.Config{Host: "http://127.0.0.1:8080"})
-}
-
-// watcher creates a watch interface for the given resource
-func watcher(kubeClient *client.Client, resource string, fieldSelector fields.Selector) (watch.Interface, error) {
-	return kubeClient.
-		Get().
-		Prefix("watch").
-		Namespace("default").
-		Resource(resource).
-		FieldsSelectorParam(
-		api.FieldSelectorQueryParam(kubeClient.APIVersion()),
-		fieldSelector).
-		Watch()
-}
-
-// watchSinglePodEvent watches all pods for a single event
-// curl http://127.0.0.1:8080/api/v1beta1/watch/pods?namespace=default
-func watchSinglePodEvent(kubeClient *client.Client) (*watch.Event, error) {
-	w, err := watcher(kubeClient, "pods", fields.Everything())
-	if err != nil {
-		fmt.Printf("Failed to watch all pods %v\n", err)
-		return nil, err
-	}
-	event := <-w.ResultChan()
-	fmt.Printf("Watch results %#v\n", event)
-	return &event, nil
-}
 
 func main() {
 
@@ -90,12 +58,15 @@ func main() {
 	//	2. listwatcher: Interface that knows how to list/watch a resource.
 	//	3. fifo queue: Interface capable of storing the output of the listwatcher.
 
-	kubeClient, _ := NewKubeClient()
+	kubeClient, err := kubeclient.NewKubeClient()
+	if err != nil {
+		fmt.Printf("Unable to create kubeclient %v", err)
+		return
+	}
 	listwatcher := cache.NewListWatchFromClient(
-		kubeClient, "pods", api.NamespaceAll,
+		kubeClient.Client, "pods", api.NamespaceAll,
 		fields.Set{"DesiredState.Host": ""}.AsSelector())
 	fifo := cache.NewFIFO(cache.MetaNamespaceKeyFunc)
-
 	reflector := cache.NewReflector(listwatcher, &api.Pod{}, fifo, 0)
 	reflector.Run()
 	for {
