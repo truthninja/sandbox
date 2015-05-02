@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"github.com/GoogleCloudPlatform/kubernetes/pkg/kubelet/dockertools"
+	"runtime"
 )
 
 func ContainerPodError() (string, error) {
@@ -16,6 +17,7 @@ func ContainerCannotRunError() (string, error) {
 type Foo map[int]string
 
 func main() {
+	fmt.Printf("\nNum goroutines %+v\n", runtime.NumGoroutine())
 	i := 1
 	f := make(Foo)
 	f[123] = "bar"

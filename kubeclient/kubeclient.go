@@ -32,10 +32,18 @@ func (k *KubeSandbox) Watcher(resource string, fieldSelector fields.Selector) (w
 		Prefix("watch").
 		Namespace("default").
 		Resource(resource).
-		FieldsSelectorParam(
-		api.FieldSelectorQueryParam(k.Client.APIVersion()),
-		fieldSelector).
+		FieldsSelectorParam(fieldSelector).
 		Watch()
+}
+
+func (k *KubeSandbox) Poster(resource string, obj interface{}) error {
+	return k.Client.
+		Post().
+		Namespace("default").
+		Resource(resource).
+		Body(obj).
+		Do().
+		Error()
 }
 
 // WatchSinglePodEvent watches all pods for a single event
@@ -49,4 +57,64 @@ func (k *KubeSandbox) WatchSinglePodEvent() (*watch.Event, error) {
 	event := <-w.ResultChan()
 	fmt.Printf("Watch results %#v\n", event)
 	return &event, nil
+}
+
+func (k *KubeSandbox) GetPod(name string) (*api.Pod, error) {
+	podClient := k.Client.Pods("default")
+	return podClient.Get(name)
+}
+
+func (k *KubeSandbox) UpdatePod(pod *api.Pod) (*api.Pod, error) {
+	podClient := k.Client.Pods("default")
+	return podClient.Update(pod)
+}
+
+func (k *KubeSandbox) UpdatePodHost(name string, host string) error {
+	pod, err := k.GetPod(name)
+	if err != nil {
+		fmt.Printf("\n Failed to get pod %#v", name)
+		return err
+	}
+	fmt.Printf("The preudpate pod has host %+v\n", pod.Spec.Host)
+	pod.Spec.Host = host
+	pod, err = k.UpdatePod(pod)
+	if err != nil {
+		fmt.Printf("Failed to update pod %#v", pod)
+	}
+	fmt.Printf("The updated pod has host %v\n", pod.Spec.Host)
+	return nil
+}
+
+func (k *KubeSandbox) UpdatePodStatus(name string, status api.PodPhase) error {
+	//k.Client.Pods("default").UpdateStatus(name, &api.PodStatus{Phase: status})
+	pod, err := k.GetPod(name)
+	if err != nil {
+		fmt.Printf("\n Failed to get pod %#v", name)
+		return err
+	}
+	fmt.Printf("The preudpate pod has host %+v\n", pod.Status.Phase)
+	pod.Status.Phase = status
+	//pod, err = k.Client.Pods("default").UpdateStatus(name, &pod.Status)
+	pod, err = k.Client.Pods("default").UpdateStatus(pod)
+	if err != nil {
+		fmt.Printf("Failed to update pod %#v", pod.Status.Phase)
+	}
+	fmt.Printf("The updated pod has host %v\n", pod.Spec.Host)
+	return nil
+}
+
+func (k *KubeSandbox) BindPodHost(name string, host string) error {
+	pod, err := k.GetPod(name)
+	if err != nil {
+		fmt.Printf("\n Failed to get pod %#v", name)
+		return err
+	}
+	b := &api.Binding{
+		ObjectMeta: api.ObjectMeta{Namespace: pod.Namespace, Name: pod.Name},
+		Target: api.ObjectReference{
+			Kind: "Node",
+			Name: host,
+		},
+	}
+	return k.Poster("bindings", b)
 }
