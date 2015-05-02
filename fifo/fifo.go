@@ -67,11 +67,17 @@ func main() {
 		kubeClient.Client, "pods", api.NamespaceAll,
 		fields.Set{"DesiredState.Host": ""}.AsSelector())
 	fifo := cache.NewFIFO(cache.MetaNamespaceKeyFunc)
+	fmt.Printf("State of the fifo %+v\n", fifo)
 	reflector := cache.NewReflector(listwatcher, &api.Pod{}, fifo, 0)
 	reflector.Run()
 	for {
-		fmt.Println("Listing fifo")
-		fmt.Println(fifo.List())
+		podList := fifo.List()
+		//for _, pod := range podList {
+		//	fmt.Printf("Updating %#v\n", pod)
+		//	kubeClient.BindPodHost(pod.(*api.Pod).Name, "101")
+		//	return
+		//}
+		fmt.Printf("Pods in fifo %+v\n", podList)
 		time.Sleep(2 * time.Second)
 	}
 }

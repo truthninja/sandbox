@@ -15,7 +15,7 @@ import (
 	"github.com/coreos/go-etcd/etcd"
 	//	"github.com/davecgh/go-spew/spew"
 	"reflect"
-	"time"
+	//"time"
 )
 
 const VERBOSE = false
@@ -23,7 +23,7 @@ const VERBOSE = false
 // Dumb example to modify the given pod
 func pods(kubeClient *client.Client, podName, podNamespace string) {
 	if podName == "" {
-		podName = "my-nginx-fplln"
+		podName = "my-nginx-u7lek"
 	}
 	if podNamespace == "" {
 		podNamespace = "default"
@@ -31,8 +31,8 @@ func pods(kubeClient *client.Client, podName, podNamespace string) {
 	podsClient := kubeClient.Pods(podNamespace)
 	fmt.Printf("Kubeclient %+v, pods %+v", kubeClient, podsClient)
 	pod, _ := podsClient.Get(podName)
-	pod.Status.Phase = "Failed"
-	pod, _ = podsClient.Update(pod)
+	pod.Status.Phase = "Running"
+	pod, _ = podsClient.UpdateStatus(pod)
 	fmt.Printf("\n\nPod %+v\n\n", pod)
 }
 
@@ -99,13 +99,5 @@ func main() {
 	s := app.NewSchedulerServer()
 	kubeClient := newKubeClient(s)
 
-	// pods(kubeClient, "", "")
-	// rc(kubeClient)
-	c := newSchedulerConfig(kubeClient, s)
-	scheduler := scheduler.New(c)
-	fmt.Printf("WAiting on next pod for scheduler %+v", scheduler)
-	for i := 0; ; i++ {
-		pod := c.NextPod()
-		fmt.Printf("\n[%v] delay %v", pod.Name, time.Since(pod.CreationTimestamp.Time))
-	}
+	pods(kubeClient, "", "")
 }
